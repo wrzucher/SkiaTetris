@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Publish .NET Core Project
-      run: dotnet publish ../SkiaTetris/SkiaTetris.csproj -c Release -o release --nologo
+      run: dotnet publish -c Release -o release --nologo
     - name: Commit wwwroot to GitHub Pages
       uses: JamesIves/github-pages-deploy-action@4.1.7
       with:
