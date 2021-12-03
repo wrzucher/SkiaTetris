@@ -84,6 +84,7 @@
     private void OnUpdate(object? sender)
     {
         this.Step(0, 1);
+        this.DeleteFullLines();
         this.skiaView.Invalidate();
     }
 
@@ -177,6 +178,27 @@
         }
 
         return gameBlock;
+    }
+
+    private void DeleteFullLines()
+    {
+        for (var y = hight; y > 0; y--)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                if (this.map[x, y] != 1)
+                {
+                    goto IngoreLine;
+                }
+            }
+
+            for (var x = 0; x < width; x++)
+            {
+                this.map[x, y] = 0;
+            }
+
+            IngoreLine:;
+        }
     }
 
     private void FreezeGameBlock()
