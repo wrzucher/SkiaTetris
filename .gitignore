@@ -1,0 +1,12 @@
+﻿## Local individual configuration file.
+config.local.js
+
+## Visual studio files
+.vs
+*.user
+bin/
+obj/
+*.js.map
+*.js
+/SkiaTetris/wwwroot/css/bootstrap
+/SkiaTetris/wwwroot/css/open-iconic/font

@@ -1,0 +1,303 @@
+﻿@page "/"
+@inject IJSRuntime JS
+@inject KeyboardEventGateway KeyboardEventGateway
+@implements IDisposable
+@using System.Threading
+
+<div class="container">
+    <div class="row">
+        <div class="col border rounded canvas-container">
+            <SKCanvasView
+                @ref="skiaView" OnPaintSurface="OnPaintSurface" IgnorePixelScaling="true"/>
+        </div>
+    </div>
+</div>
+
+@if (this.GameState == GameStateType.Lose)
+{
+    <h1>LOOOSER!</h1>
+}
+
+@code {
+    SKCanvasView skiaView = null!;
+    SKPoint? touchLocation;
+    Timer updater;
+    Random random = new ();
+    private GameStateType GameState { get; set; }
+
+    int hight = 30;
+    int width = 15;
+    int[,] map;
+    int[,] gameBlock;
+    (int x, int y) cursor;
+
+    protected override void OnParametersSet()
+    {
+        this.map = new int[width, hight];
+        this.gameBlock = GetRandomGameBlock();
+        this.cursor = (3, 3);
+        KeyboardEventGateway.OnKeyDown += OnKeyDown;
+        this.updater = new Timer(this.OnUpdate, 0, 0, 1000);
+        this.GameState = GameStateType.Play;
+        base.OnParametersSet();
+    }
+
+    public void Dispose()
+    {
+        KeyboardEventGateway.OnKeyDown -= OnKeyDown;
+        this.updater.Dispose();
+    }
+
+    public void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (this.GameState != GameStateType.Play)
+        {
+            return;
+        }
+
+        if (e.Code == "ArrowLeft")
+        {
+            this.Step(-1, 0);
+        }
+
+        if (e.Code == "ArrowRight")
+        {
+            this.Step(1, 0);
+        }
+
+        if (e.Code == "ArrowDown")
+        {
+            this.Step(0, 1);
+        }
+
+        if (e.Code == "ArrowUp")
+        {
+            this.gameBlock = rotateCW(this.gameBlock);
+            this.skiaView.Invalidate();
+        }
+    }
+
+    private void OnUpdate(object? sender)
+    {
+        this.Step(0, 1);
+        this.skiaView.Invalidate();
+    }
+
+    private void Step(int xDelta, int yDelta)
+    {
+        if (CanStep(xDelta, yDelta))
+        {
+            this.cursor.x += xDelta;
+            this.cursor.y += yDelta;
+        }
+        if (xDelta == 0 && !CanStep(0, yDelta))
+        {
+            this.FreezeGameBlock();
+            this.gameBlock = GetRandomGameBlock();
+            this.cursor = (5, 0);
+            if (!CanStep(0, 0))
+            {
+                this.GameLose();
+            }
+        }
+
+        this.skiaView.Invalidate();
+    }
+
+    static int[,] rotateCW(int[,] mat) {
+        var M = 4;
+        var N = 4;
+        int[,] ret = new int[N, M];
+        for (int r = 0; r < M; r++) {
+            for (int c = 0; c < N; c++) {
+                ret[c, M-1-r] = mat[r, c];
+            }
+        }
+        return ret;
+    }
+
+    private void GameLose()
+    {
+        this.GameState = GameStateType.Lose;
+        this.updater.Dispose();
+        this.StateHasChanged();
+    }
+
+    private int[,] GetRandomGameBlock()
+    {
+        return GetGameBlock((GameBlockType)random.Next(0, 5));
+    }
+
+    private int[,] GetGameBlock(GameBlockType gameBlockType)
+    {
+        var gameBlock = new int[4, 4];
+
+        switch (gameBlockType)
+        {
+            case GameBlockType.Square:
+                gameBlock[1, 1] = 1;
+                gameBlock[1, 2] = 1;
+                gameBlock[2, 1] = 1;
+                gameBlock[2, 2] = 1;
+                break;
+            case GameBlockType.ZLeft:
+                gameBlock[0, 2] = 1;
+                gameBlock[1, 2] = 1;
+                gameBlock[1, 1] = 1;
+                gameBlock[2, 1] = 1;
+                break;
+            case GameBlockType.ZRight:
+                gameBlock[0, 1] = 1;
+                gameBlock[1, 1] = 1;
+                gameBlock[1, 2] = 1;
+                gameBlock[2, 2] = 1;
+                break;
+            case GameBlockType.LLeft:
+                gameBlock[0, 0] = 1;
+                gameBlock[1, 0] = 1;
+                gameBlock[1, 1] = 1;
+                gameBlock[1, 2] = 1;
+                break;
+            case GameBlockType.LRight:
+                gameBlock[2, 0] = 1;
+                gameBlock[1, 0] = 1;
+                gameBlock[1, 1] = 1;
+                gameBlock[1, 2] = 1;
+                break;
+            case GameBlockType.Line:
+                gameBlock[1, 0] = 1;
+                gameBlock[1, 1] = 1;
+                gameBlock[1, 2] = 1;
+                gameBlock[1, 3] = 1;
+                break;
+        }
+
+        return gameBlock;
+    }
+
+    private void FreezeGameBlock()
+    {
+        for (var x = 0; x < 4; x++)
+        {
+            for (var y = 0; y < 4; y++)
+            {
+                if (this.gameBlock[x, y] != 0)
+                {
+                    var yAbs = y + this.cursor.y;
+                    var xAbs = x + this.cursor.x;
+                    map[xAbs, yAbs] = 1;
+                }
+            }
+        }
+    }
+
+    private bool CanStep(int xDelta, int yDelta)
+    {
+        for (var x = 0; x < 4; x++)
+        {
+            for (var y = 0; y < 4; y++)
+            {
+                if (this.gameBlock[x, y] != 0)
+                {
+                    var yAbs = y + this.cursor.y + yDelta;
+                    var xAbs = x + this.cursor.x + xDelta;
+                    if (xAbs >= this.width || xAbs < 0)
+                    {
+                        return false;
+                    }
+
+                    if (yAbs >= this.hight || yAbs < 0)
+                    {
+                        return false;
+                    }
+
+                    if (map[xAbs, yAbs] != 0)
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    void OnPaintSurface(SKPaintSurfaceEventArgs e)
+    {
+        // the the canvas and properties
+        var canvas = e.Surface.Canvas;
+
+        // make sure the canvas is blank
+        canvas.Clear(SKColors.White);
+
+        // decide what the text looks like
+        using var paintFree = new SKPaint
+        {
+            Color = SKColors.Aqua,
+            IsAntialias = true,
+            Style = SKPaintStyle.Stroke,
+            TextAlign = SKTextAlign.Center,
+            TextSize = 24
+        };
+        using var paintBlock = new SKPaint
+        {
+            Color = SKColors.Black,
+            IsAntialias = true,
+            Style = SKPaintStyle.Fill,
+            TextAlign = SKTextAlign.Center,
+            TextSize = 24
+        };
+        using var paintGameBlock = new SKPaint
+        {
+            Color = SKColors.Red,
+            IsAntialias = true,
+            Style = SKPaintStyle.Fill,
+            TextAlign = SKTextAlign.Center,
+            TextSize = 24
+        };
+
+        for (var x = 0; x < width; x++)
+        {
+            for (var y = 0; y < hight; y++)
+            {
+                if (this.map[x, y] == 1)
+                {
+                    canvas.DrawRect(x*10, y*10, 10, 10, paintBlock);
+                }
+                else
+                {
+                    canvas.DrawRect(x*10, y*10, 10, 10, paintFree);
+                }
+            }
+        }
+
+        for (var x = 0; x < 4; x++)
+        {
+            for (var y = 0; y < 4; y++)
+            {
+                if (this.gameBlock[x, y] == 1)
+                {
+                    var yAbs = y + this.cursor.y;
+                    var xAbs = x + this.cursor.x;
+                    canvas.DrawRect(xAbs*10, yAbs*10, 10, 10, paintGameBlock);
+                }
+            }
+        }
+    }
+
+    enum GameBlockType
+    {
+        Square = 0,
+        Line = 1,
+        ZLeft = 2,
+        ZRight = 3,
+        LLeft = 4,
+        LRight = 5,
+    }
+
+    enum GameStateType
+    {
+        Play = 0,
+        Lose = 1,
+    }
+}
