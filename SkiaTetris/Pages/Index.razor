@@ -72,8 +72,12 @@
 
         if (e.Code == "ArrowUp")
         {
-            this.gameBlock = rotateCW(this.gameBlock);
-            this.skiaView.Invalidate();
+            var newGameBlock = rotateCW(this.gameBlock);
+            if (CanRotate(newGameBlock))
+            {
+                this.gameBlock = newGameBlock;
+                this.skiaView.Invalidate();
+            }
         }
     }
 
@@ -191,13 +195,23 @@
         }
     }
 
+    private bool CanRotate(int[,] newGameBlock)
+    {
+        return this.CanStep(0, 0, newGameBlock);
+    }
+
     private bool CanStep(int xDelta, int yDelta)
+    {
+        return this.CanStep(xDelta, yDelta, this.gameBlock);
+    }
+
+    private bool CanStep(int xDelta, int yDelta, int[,] gameBlock)
     {
         for (var x = 0; x < 4; x++)
         {
             for (var y = 0; y < 4; y++)
             {
-                if (this.gameBlock[x, y] != 0)
+                if (gameBlock[x, y] != 0)
                 {
                     var yAbs = y + this.cursor.y + yDelta;
                     var xAbs = x + this.cursor.x + xDelta;
