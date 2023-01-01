@@ -8,7 +8,13 @@
     <div class="row">
         <div class="col border rounded canvas-container">
             <SKCanvasView
-                @ref="skiaView" OnPaintSurface="OnPaintSurface" IgnorePixelScaling="true"/>
+                @ref="skiaView"
+                OnPaintSurface="OnPaintSurface"
+                IgnorePixelScaling="true"
+                @onpointerdown="OnPointerDown"
+                @onpointermove="OnPointerMove"
+                @onpointerup="OnPointerUp"
+                @ondblclick="OnDoubleClick"/>
         </div>
     </div>
 </div>
@@ -21,7 +27,7 @@
 @code {
     SKCanvasView skiaView = null!;
     SKPoint? touchLocation;
-    Timer updater;
+    Timer updater = null!;
     Random random = new ();
     private GameStateType GameState { get; set; }
 
@@ -46,6 +52,63 @@
     {
         KeyboardEventGateway.OnKeyDown -= OnKeyDown;
         this.updater.Dispose();
+    }
+
+    void OnDoubleClick(MouseEventArgs e)
+    {
+        var newGameBlock = rotateCW(this.gameBlock);
+        if (CanRotate(newGameBlock))
+        {
+            this.gameBlock = newGameBlock;
+            this.skiaView.Invalidate();
+        }
+    }
+
+    void OnPointerDown(PointerEventArgs e)
+    {
+        touchLocation = new SKPoint((float)e.OffsetX, (float)e.OffsetY);
+    }
+
+    void OnPointerMove(PointerEventArgs e)
+    {
+        if (touchLocation == null)
+        {
+            return;
+        }
+
+        var newTouchLocation = new SKPoint((float)e.OffsetX, (float)e.OffsetY);
+        var divX = Math.Abs(newTouchLocation.X - touchLocation.Value.X);
+        var divY = Math.Abs(newTouchLocation.Y - touchLocation.Value.Y);
+        if (divX > 0)
+        {
+            if (newTouchLocation.X > touchLocation.Value.X)
+            {
+                this.Step(1, 0);
+            }
+
+            if (newTouchLocation.X < touchLocation.Value.X)
+            {
+                this.Step(-1, 0);
+            }
+        }
+
+        if (divY > 50)
+        {
+            if (newTouchLocation.Y > touchLocation.Value.Y)
+            {
+                this.Step(0, 1);
+            }
+
+            if (newTouchLocation.Y < touchLocation.Value.Y)
+            {
+                this.Step(-1, 0);
+            }
+        }
+    }
+
+    void OnPointerUp(PointerEventArgs e)
+    {
+        touchLocation = null;
     }
 
     public void OnKeyDown(KeyboardEventArgs e)
